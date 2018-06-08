@@ -1,9 +1,17 @@
-package = "LuaCov-coveralls"
-version = "scm-0"
+-- This file was automatically generated for the LuaDist project.
+
+package = "luacov-coveralls"
+version = "0.1.1-1"
+-- LuaDist source
 source = {
-   url = "git://github.com/moteus/luacov-coveralls",
-   tag = "master"
+  tag = "0.1.1-1",
+  url = "git://github.com/LuaDist-testing/luacov-coveralls.git"
 }
+-- Original source
+-- source = {
+--    url = "git://github.com/moteus/luacov-coveralls",
+--    tag = "v0.1.1"
+-- }
 description = {
    summary = "LuaCov reporter for coveralls.io service",
    detailed = [[

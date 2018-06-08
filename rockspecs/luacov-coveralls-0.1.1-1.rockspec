@@ -1,17 +1,9 @@
--- This file was automatically generated for the LuaDist project.
-
-package = "luacov-coveralls"
-version = "0.1.0-1"
--- LuaDist source
+package = "LuaCov-coveralls"
+version = "0.1.1-1"
 source = {
-  tag = "0.1.0-1",
-  url = "git://github.com/LuaDist-testing/luacov-coveralls.git"
+   url = "git://github.com/moteus/luacov-coveralls",
+   tag = "v0.1.1"
 }
--- Original source
--- source = {
---    url = "git://github.com/moteus/luacov-coveralls",
---    tag = "v0.1.0"
--- }
 description = {
    summary = "LuaCov reporter for coveralls.io service",
    detailed = [[
@@ -34,6 +26,7 @@ build = {
       ['luacov.reporter.coveralls'] = "src/luacov/reporter/coveralls.lua",
       ['luacov.coveralls.GitRepo' ] = "src/luacov/coveralls/GitRepo.lua",
       ['luacov.coveralls.CiInfo'  ] = "src/luacov/coveralls/CiInfo.lua",
+      ['luacov.coveralls.CiRepo'  ] = "src/luacov/coveralls/CiRepo.lua",
       ['luacov.coveralls.utils'   ] = "src/luacov/coveralls/utils.lua",
    },
    install = {
