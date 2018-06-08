@@ -27,6 +27,7 @@ local function trace_json(o)
    debug_print(o, "--------------------\n")
    debug_print(o, "service_name   : ", o._json.service_name    or "", "\n")
    debug_print(o, "repo_token     : ", o._json.repo_token and "<DETECTED>" or "<NOT DETECTED>", "\n")
+   debug_print(o, "service_number : ", o._json.service_number  or "", "\n")
    debug_print(o, "service_job_id : ", o._json.service_job_id  or "", "\n")
    debug_print(o, "source_files   : ", #o._json.source_files   or "", "\n")
    for _, source in ipairs(o._json.source_files) do
@@ -57,6 +58,9 @@ function CoverallsReporter:new(conf)
    -- read coveralls specific configurations
    local cc = conf.coveralls or {}
    self._debug = not not cc.debug
+   if cc.merge then
+      self._source_files = {}
+   end
 
    local repo, err = CiRepo:new(cc.root or '.')
    assert(repo, "LuaCov-covealls internal error :" .. tostring(err))
@@ -64,6 +68,7 @@ function CoverallsReporter:new(conf)
    debug_print(o, "CI: \n")
    debug_print(o, "  name            : ", ci.name            () or "<UNKNOWN>", "\n")
    debug_print(o, "  branch          : ", ci.branch          () or "<UNKNOWN>", "\n")
+   debug_print(o, "  service_number  : ", ci.service_number  () or "<UNKNOWN>", "\n")
    debug_print(o, "  job_id          : ", ci.job_id          () or "<UNKNOWN>", "\n")
    debug_print(o, "  commit_id       : ", ci.commit_id       () or "<UNKNOWN>", "\n")
    debug_print(o, "  author_name     : ", ci.author_name     () or "<UNKNOWN>", "\n")
@@ -99,10 +104,10 @@ function CoverallsReporter:new(conf)
    end
 
    local base_file
-   if cc.merge then
+   if cc.json then
       local err
-      base_file, err = json.load_file(cc.merge)
-      debug_print(o, "Load merge file ", tostring(cc.merge), ": ", tostring((not not base_file) or err), "\n")
+      base_file, err = json.load_file(cc.json)
+      debug_print(o, "Load merge file ", tostring(cc.json), ": ", tostring((not not base_file) or err), "\n")
       if base_file and base_file.source_files then
          for _, source in ipairs(base_file.source_files) do
             debug_print(o, "  ", source.name, "\n")
@@ -111,14 +116,15 @@ function CoverallsReporter:new(conf)
       end
       if not base_file then
          o:close()
-         return nil, "Can not merge with " .. cc.merge .. ". Error: " .. (err or "")
+         return nil, "Can not merge with " .. cc.json .. ". Error: " .. (err or "")
       end
    end
 
    o._json = base_file or {}
 
-   o._json.service_name   = o._json.service_name   or ci.name()
-   o._json.repo_token     = o._json.repo_token     or cc.repo_token or ci.token()
+   o._json.service_name   = cc.service_name        or ci.name()  or o._json.service_name
+   o._json.repo_token     = cc.repo_token          or ci.token() or o._json.repo_token
+   o._json.service_number = o._json.service_number or ci.service_number()
    o._json.service_job_id = o._json.service_job_id or ci.job_id()
    o._json.source_files   = o._json.source_files   or json.init_array{}
 
@@ -167,45 +173,91 @@ function CoverallsReporter:on_start()
 end
 
 function CoverallsReporter:on_new_file(filename)
-   self._current_file = {
-      name     = self:correct_path(filename);
-      source   = {};
-      coverage = json.init_array{};
-      count    = 0;
-      hits     = 0;
-      miss     = 0;
-   }
+   local name = self:correct_path(filename)
+   local source_file
+
+   if self._source_files then
+      source_file  = self._source_files[name]
+   end
+
+   if source_file then
+      debug_print(self, "Merge duplicate file: ", filename, "\n")
+      assert(source_file.name == name, "Expected: " .. tostring(name) .. " got " .. tostring(source_file.name))
+      source_file.count = 0
+      source_file.hits  = 0
+      source_file.miss  = 0
+   else
+      source_file = {
+         name      = name;
+         source    = {};
+         coverage  = json.init_array{};
+         count     = 0;
+         hits      = 0;
+         miss      = 0;
+      }
+   end
+
+   self._current_file = source_file;
+end
+
+local function get_cov(self, i, line)
+   local cov = self._current_file.coverage[i]
+   if not self._source_files then
+      assert(cov == nil, tostring(cov))
+   end
+
+   if cov == nil then return nil end
+
+   local exists_line = self._current_file.source[i]
+   if line ~= exists_line then
+      local pcov
+      if cov == EMPTY then pcov = '<EMPTY>'
+      elseif cov == ZERO then pcov = '<ZERO>'
+      else pcov = tostring(cov) end
+      io.write("\nWARNING: try merge different files as ", tostring(self._current_file.name), "\n")
+      debug_print(self, "Line ", tostring(i), "(", pcov, ")\n")
+      debug_print(self, "- ", tostring(exists_line), "\n")
+      debug_print(self, "+ ", tostring(line), "\n")
+   end
+
+   return cov
 end
 
 function CoverallsReporter:on_empty_line(filename, lineno, line)
    local i = self._current_file.count + 1
+   local cov = get_cov(self, i, line)
+
    self._current_file.count       = i
-   self._current_file.coverage[i] = EMPTY
+   self._current_file.coverage[i] = cov or EMPTY
    self._current_file.source[i]   = line
 end
 
 function CoverallsReporter:on_mis_line(filename, lineno, line)
    local i = self._current_file.count + 1
+   local cov = get_cov(self, i, line)
+
    self._current_file.count       = i
    self._current_file.miss        = self._current_file.miss + 1
-   self._current_file.coverage[i] = ZERO
+   self._current_file.coverage[i] = cov or ZERO
    self._current_file.source[i]   = line
 end
 
 function CoverallsReporter:on_hit_line(filename, lineno, line, hits)
    local i = self._current_file.count + 1
+   local cov = tonumber(get_cov(self, i, line))
+
    self._current_file.count       = i
    self._current_file.hits        = self._current_file.hits + 1
-   self._current_file.coverage[i] = hits
+   self._current_file.coverage[i] = (cov or 0) + hits
    self._current_file.source[i]   = line
 end
 
 function CoverallsReporter:on_end_file(filename, hits, miss)
    local source_file = self._current_file
 
-   local total = self._current_file.hits + self._current_file.miss
+   local total = source_file.hits + source_file.miss
    local cover = 0
-   if total ~= 0 then cover = 100 * (self._current_file.hits / total) end
+   if total ~= 0 then cover = 100 * (source_file.hits / total) end
 
    print( string.format("File '%s'", source_file.name) )
    print( string.format("Lines executed:%.2f%% of %d\n", cover, total) )
@@ -214,11 +266,23 @@ function CoverallsReporter:on_end_file(filename, hits, miss)
    source_file.hits  = nil
    source_file.miss  = nil
 
-   source_file.source = table.concat(source_file.source, "\n")
+   if self._source_files then
+      if self._source_files[source_file.name] then
+         return
+      end
+      self._source_files[source_file.name] = source_file
+   end
+
    table.insert(self._json.source_files, source_file)
 end
 
 function CoverallsReporter:on_end()
+   for _, source_file in ipairs(self._json.source_files) do
+      if type(source_file.source) == 'table' then
+         source_file.source = table.concat(source_file.source, "\n")
+      end
+   end
+
    trace_json(self)
    local msg = json.encode(self._json)
    self:write(msg)

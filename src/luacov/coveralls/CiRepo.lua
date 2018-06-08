@@ -1,4 +1,5 @@
-local GitRepo = require"luacov.coveralls.GitRepo"
+local GitRepo = require"luacov.coveralls.repo.git"
+local ApvRepo = require"luacov.coveralls.repo.appveyor"
 local ci      = require"luacov.coveralls.CiInfo"
 
 local function try_any_repo(repo_path)
@@ -6,7 +7,8 @@ local function try_any_repo(repo_path)
   local repo, err = GitRepo:new(repo_path) 
   if repo then return repo, "git" end
 
-  -- @todo warning message about failure
+  repo, err = ApvRepo:new(repo_path)
+  if repo then return repo, err end
 
   local function dummy() end
   return setmetatable({}, {__index = function() return dummy end}), "unknown"

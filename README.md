@@ -5,7 +5,15 @@ luacov-coveralls
 
 LuaCov reporter for [coveralls.io](https://coveralls.io) service.
 
-This module tested only on Travis-CI.
+Currently support 
+  * [Travis CI](https://travis-ci.org)
+  * [AppVeyor](https://appveyor.com)
+
+Also `luacov-coveralls` has code which support some other CI but I never test them.
+If you can test it please do that and send PR.
+  * [codeship](https://codeship.com)
+  * [circleci](https://circleci.com)
+  * [drone.io](http://drone.io)
 
 ##Install
 
@@ -38,9 +46,12 @@ optional arguments:
   -o FILE, --output FILE
                         output file
   -j FILE, --json FILE  merge report with this json report
+  -m, --merge           merge statistics for files with same name
   -r DIR, --root DIR    set the root directory
   -e PAT, --exclude PAT set exclude pattern
   -i PAT, --include PAT set include pattern
+  -s NAME, --service-name NAME
+                        set `service_name` field explicitly
   -t TOKEN, --repo-token TOKEN
                         set the repo_token of this project
   --dryrun              run coveralls without uploading report
