@@ -25,11 +25,12 @@ end
 
 local function trace_json(o)
    debug_print(o, "--------------------\n")
-   debug_print(o, "service_name   : ", o._json.service_name    or "", "\n")
-   debug_print(o, "repo_token     : ", o._json.repo_token and "<DETECTED>" or "<NOT DETECTED>", "\n")
-   debug_print(o, "service_number : ", o._json.service_number  or "", "\n")
-   debug_print(o, "service_job_id : ", o._json.service_job_id  or "", "\n")
-   debug_print(o, "source_files   : ", #o._json.source_files   or "", "\n")
+   debug_print(o, "service_name         : ", o._json.service_name    or "", "\n")
+   debug_print(o, "repo_token           : ", o._json.repo_token and "<DETECTED>" or "<NOT DETECTED>", "\n")
+   debug_print(o, "service_number       : ", o._json.service_number  or "", "\n")
+   debug_print(o, "service_job_id       : ", o._json.service_job_id  or "", "\n")
+   debug_print(o, "service_pull_request : ", o._json.service_pull_request  or "", "\n")
+   debug_print(o, "source_files         : ", #o._json.source_files   or "", "\n")
    for _, source in ipairs(o._json.source_files) do
       debug_print(o, "  ", source.name, "\n")
    end
@@ -69,6 +70,7 @@ function CoverallsReporter:new(conf)
    debug_print(o, "  name            : ", ci.name            () or "<UNKNOWN>", "\n")
    debug_print(o, "  branch          : ", ci.branch          () or "<UNKNOWN>", "\n")
    debug_print(o, "  service_number  : ", ci.service_number  () or "<UNKNOWN>", "\n")
+   debug_print(o, "  pull_request    : ", ci.pull_request    () or "<UNKNOWN>", "\n")
    debug_print(o, "  job_id          : ", ci.job_id          () or "<UNKNOWN>", "\n")
    debug_print(o, "  commit_id       : ", ci.commit_id       () or "<UNKNOWN>", "\n")
    debug_print(o, "  author_name     : ", ci.author_name     () or "<UNKNOWN>", "\n")
@@ -122,11 +124,33 @@ function CoverallsReporter:new(conf)
 
    o._json = base_file or {}
 
-   o._json.service_name   = cc.service_name        or ci.name()  or o._json.service_name
-   o._json.repo_token     = cc.repo_token          or ci.token() or o._json.repo_token
-   o._json.service_number = o._json.service_number or ci.service_number()
-   o._json.service_job_id = o._json.service_job_id or ci.job_id()
-   o._json.source_files   = o._json.source_files   or json.init_array{}
+   o._json.service_name         = cc.service_name              or ci.name()  or o._json.service_name
+   o._json.repo_token           = cc.repo_token                or ci.token() or o._json.repo_token
+   o._json.service_number       = o._json.service_number       or ci.service_number()
+   o._json.service_job_id       = o._json.service_job_id       or ci.job_id()
+   o._json.source_files         = o._json.source_files         or json.init_array{}
+   o._json.service_pull_request = o._json.service_pull_request or ci.pull_request()
+
+   if cc.build_number then
+      io.write("*****************************************************","\n")
+      io.write("WARNING! change build number is experimental feature", "\n")
+      io.write("and may be changed/excluded in future version!",       "\n")
+      io.write("*****************************************************","\n")
+      assert(tonumber(cc.build_number))
+      local sign = string.sub(cc.build_number, 1, 1)
+      if sign == '+' or sign == '-' then
+         if tonumber(o._json.service_number) then
+            local v = tonumber(o._json.service_number) + tonumber(cc.build_number)
+            debug_print(o, "change service_number from ", o._json.service_number, " to ", tostring(v), "\n")
+            o._json.service_number = tostring(v)
+         else
+            io.write("WARNING! can not change service_number from ", o._json.service_number, "\n")
+         end
+      else
+         debug_print(o, "set service_number to ", tostring(cc.build_number), "\n")
+         o._json.service_number = cc.build_number
+      end
+   end
 
    if repo:type() == 'git' then
       o._json.git      = o._json.git or {}
