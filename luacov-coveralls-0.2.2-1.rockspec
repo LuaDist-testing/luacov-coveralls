@@ -1,16 +1,16 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "luacov-coveralls"
-version = "0.2.1-1"
+version = "0.2.2-1"
 -- LuaDist source
 source = {
-  tag = "0.2.1-1",
+  tag = "0.2.2-1",
   url = "git://github.com/LuaDist-testing/luacov-coveralls.git"
 }
 -- Original source
 -- source = {
 --    url = "git://github.com/moteus/luacov-coveralls",
---    tag = "v0.2.1"
+--    tag = "v0.2.2"
 -- }
 description = {
    summary = "LuaCov reporter for coveralls.io service",
